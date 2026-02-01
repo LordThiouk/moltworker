@@ -33,7 +33,9 @@ publicRoutes.get('/logo-small.png', (c) => {
 // GET /api/status - Public health check for gateway status (no auth required)
 publicRoutes.get('/api/status', async (c) => {
   const sandbox = c.get('sandbox');
-  
+  if (!sandbox) {
+    return c.json({ ok: false, status: 'no_containers' });
+  }
   try {
     const process = await findExistingMoltbotProcess(sandbox);
     if (!process) {

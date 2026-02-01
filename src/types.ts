@@ -19,6 +19,8 @@ export interface MoltbotEnv {
   CLAWDBOT_BIND_MODE?: string;
   DEV_MODE?: string; // Set to 'true' for local dev (skips CF Access auth + moltbot device pairing)
   DEBUG_ROUTES?: string; // Set to 'true' to enable /debug/* routes
+  /** Set to 'true' when containers are disabled (e.g. Windows local dev) to avoid Sandbox DO calls and miniflare "internal error; reference =" */
+  LOCAL_NO_CONTAINERS?: string;
   SANDBOX_SLEEP_AFTER?: string; // How long before sandbox sleeps: 'never' (default), or duration like '10m', '1h'
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_DM_POLICY?: string;
@@ -53,7 +55,7 @@ export interface AccessUser {
 export type AppEnv = {
   Bindings: MoltbotEnv;
   Variables: {
-    sandbox: Sandbox;
+    sandbox: Sandbox | null;
     accessUser?: AccessUser;
   };
 };

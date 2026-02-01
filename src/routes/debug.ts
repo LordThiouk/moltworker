@@ -9,9 +9,17 @@ import { findExistingMoltbotProcess } from '../gateway';
  */
 const debug = new Hono<AppEnv>();
 
+// Require sandbox for routes that use the container (skip when LOCAL_NO_CONTAINERS)
+debug.use('*', async (c, next) => {
+  if (c.get('sandbox') === null) {
+    return c.json({ error: 'Containers disabled (LOCAL_NO_CONTAINERS). Debug routes that need the container are unavailable.' }, 503);
+  }
+  return next();
+});
+
 // GET /debug/version - Returns version info from inside the container
 debug.get('/version', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   try {
     // Get moltbot version (CLI is still named clawdbot until upstream renames)
     const versionProcess = await sandbox.startProcess('clawdbot --version');
@@ -37,7 +45,7 @@ debug.get('/version', async (c) => {
 
 // GET /debug/processes - List all processes with optional logs
 debug.get('/processes', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   try {
     const processes = await sandbox.listProcesses();
     const includeLogs = c.req.query('logs') === 'true';
@@ -95,7 +103,7 @@ debug.get('/processes', async (c) => {
 
 // GET /debug/gateway-api - Probe the moltbot gateway HTTP API
 debug.get('/gateway-api', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   const path = c.req.query('path') || '/';
   const MOLTBOT_PORT = 18789;
   
@@ -125,7 +133,7 @@ debug.get('/gateway-api', async (c) => {
 
 // GET /debug/cli - Test moltbot CLI commands (CLI is still named clawdbot)
 debug.get('/cli', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   const cmd = c.req.query('cmd') || 'clawdbot --help';
   
   try {
@@ -156,7 +164,7 @@ debug.get('/cli', async (c) => {
 
 // GET /debug/logs - Returns container logs for debugging
 debug.get('/logs', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   try {
     const processId = c.req.query('id');
     let process = null;
@@ -355,8 +363,8 @@ debug.get('/env', async (c) => {
 
 // GET /debug/container-config - Read the moltbot config from inside the container
 debug.get('/container-config', async (c) => {
-  const sandbox = c.get('sandbox');
-  
+  const sandbox = c.get('sandbox')!;
+
   try {
     const proc = await sandbox.startProcess('cat /root/.clawdbot/clawdbot.json');
     

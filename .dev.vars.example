@@ -9,6 +9,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Enable debug routes at /debug/* (optional)
 # DEBUG_ROUTES=true
 
+# Windows local dev: uncomment to avoid "Containers have not been enabled" (wrangler has enable_containers: false)
+# LOCAL_NO_CONTAINERS=true
+
 # Optional - set a fixed token instead of auto-generated
 MOLTBOT_GATEWAY_TOKEN=dev-token-change-in-prod
 

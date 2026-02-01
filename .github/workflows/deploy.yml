@@ -1,0 +1,38 @@
+# Deploy to Cloudflare (Linux runner - évite les problèmes de push Docker sur Windows)
+name: Deploy
+
+on:
+  workflow_dispatch:   # Déclenché manuellement depuis l'onglet Actions
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.dev.vars.example'
+      - '.gitignore'
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare
+        run: npm run deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

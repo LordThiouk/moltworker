@@ -14,6 +14,7 @@ Run [OpenClaw](https://github.com/openclaw/openclaw) (formerly Moltbot, formerly
 - [Anthropic API key](https://console.anthropic.com/) — for Claude access, or you can use AI Gateway's [Unified Billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/)
 
 The following Cloudflare features used by this project have free tiers:
+
 - Cloudflare Access (authentication)
 - Browser Rendering (for browser navigation)
 - AI Gateway (optional, for API routing/analytics)
@@ -52,9 +53,18 @@ npx wrangler secret put ANTHROPIC_API_KEY
 
 # Generate and set a gateway token (required for remote access)
 # Save this token - you'll need it to access the Control UI
+
+# Linux / macOS:
 export MOLTBOT_GATEWAY_TOKEN=$(openssl rand -hex 32)
 echo "Your gateway token: $MOLTBOT_GATEWAY_TOKEN"
 echo "$MOLTBOT_GATEWAY_TOKEN" | npx wrangler secret put MOLTBOT_GATEWAY_TOKEN
+
+# Windows (PowerShell):
+$bytes = [byte[]]::new(32)
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$env:MOLTBOT_GATEWAY_TOKEN = [BitConverter]::ToString($bytes).Replace('-','')
+Write-Host "Your gateway token: $env:MOLTBOT_GATEWAY_TOKEN"
+$env:MOLTBOT_GATEWAY_TOKEN | wrangler secret put MOLTBOT_GATEWAY_TOKEN
 
 # Deploy
 npm run deploy
@@ -71,6 +81,7 @@ Replace `your-worker` with your actual worker subdomain and `YOUR_GATEWAY_TOKEN`
 **Note:** The first request may take 1-2 minutes while the container starts.
 
 > **Important:** You will not be able to use the Control UI until you complete the following steps. You MUST:
+>
 > 1. [Set up Cloudflare Access](#setting-up-the-admin-ui) to protect the admin UI
 > 2. [Pair your device](#device-pairing) via the admin UI at `/_admin/`
 
@@ -79,6 +90,7 @@ You'll also likely want to [enable R2 storage](#persistent-storage-r2) so your p
 ## Setting Up the Admin UI
 
 To use the admin UI at `/_admin/` for device management, you need to:
+
 1. Enable Cloudflare Access on your worker
 2. Set the Access secrets so the worker can validate JWTs
 
@@ -131,7 +143,15 @@ If you prefer more control, you can manually create an Access application:
 
 ### Local Development
 
-For local development, create a `.dev.vars` file with:
+Use **`.dev.vars`** for local keys (Wrangler loads it automatically with `npm run start`).
+
+```bash
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars with your ANTHROPIC_API_KEY and optional DEV_MODE, DEBUG_ROUTES, etc.
+npm run start
+```
+
+Example variables for local dev:
 
 ```bash
 DEV_MODE=true               # Skip Cloudflare Access auth + bypass device pairing
@@ -196,14 +216,17 @@ To find your Account ID: Go to the [Cloudflare Dashboard](https://dash.cloudflar
 R2 storage uses a backup/restore approach for simplicity:
 
 **On container startup:**
+
 - If R2 is mounted and contains backup data, it's restored to the moltbot config directory
 - OpenClaw uses its default paths (no special configuration needed)
 
 **During operation:**
+
 - A cron job runs every 5 minutes to sync the moltbot config to R2
 - You can also trigger a manual backup from the admin UI at `/_admin/`
 
 **In the admin UI:**
+
 - When R2 is configured, you'll see "Last backup: [timestamp]"
 - Click "Backup Now" to trigger an immediate sync
 
@@ -227,6 +250,7 @@ When the container sleeps, the next request will trigger a cold start. If you ha
 ![admin ui](./assets/adminui.png)
 
 Access the admin UI at `/_admin/` to:
+
 - **R2 Storage Status** - Shows if R2 is configured, last backup time, and a "Backup Now" button
 - **Restart Gateway** - Kill and restart the moltbot gateway process
 - **Device Pairing** - View pending requests, approve devices individually or all at once, view paired devices
@@ -278,14 +302,14 @@ npx wrangler secret put CDP_SECRET
 # Enter a secure random string
 ```
 
-2. Set your worker's public URL:
+1. Set your worker's public URL:
 
 ```bash
 npx wrangler secret put WORKER_URL
 # Enter: https://your-worker.workers.dev
 ```
 
-3. Redeploy:
+1. Redeploy:
 
 ```bash
 npm run deploy
@@ -311,11 +335,13 @@ The container includes pre-installed skills in `/root/clawd/skills/`:
 Browser automation via the CDP shim. Requires `CDP_SECRET` and `WORKER_URL` to be set (see [Browser Automation](#optional-browser-automation-cdp) above).
 
 **Scripts:**
+
 - `screenshot.js` - Capture a screenshot of a URL
 - `video.js` - Create a video from multiple URLs
 - `cdp-client.js` - Reusable CDP client library
 
 **Usage:**
+
 ```bash
 # Screenshot
 node /root/clawd/skills/cloudflare-browser/scripts/screenshot.js https://example.com output.png
@@ -347,7 +373,7 @@ npx wrangler secret put AI_GATEWAY_BASE_URL
 # Enter: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic
 ```
 
-4. Redeploy:
+1. Redeploy:
 
 ```bash
 npm run deploy
@@ -396,6 +422,8 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 
 ## Troubleshooting
 
+**`Docker command exited with code 1` when deploying (Windows):** The Worker upload succeeds but pushing the container image (~1.8 GB) to Cloudflare’s registry fails on Windows (timeout or Docker Desktop). Options: (1) Retry with a stable connection; (2) Deploy from **WSL** (`npm run deploy` in a Linux shell); (3) Use **GitHub Actions** on a Linux runner (add a deploy workflow and `CLOUDFLARE_API_TOKEN`).
+
 **`npm run dev` fails with an `Unauthorized` error:** You need to enable Cloudflare Containers in the [Containers dashboard](https://dash.cloudflare.com/?to=/:account/workers/containers)
 
 **Gateway fails to start:** Check `npx wrangler secret list` and `npx wrangler tail`
@@ -411,6 +439,43 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 **Devices not appearing in admin UI:** Device list commands take 10-15 seconds due to WebSocket connection overhead. Wait and refresh.
 
 **WebSocket issues in local development:** `wrangler dev` has known limitations with WebSocket proxying through the sandbox. HTTP requests work but WebSocket connections may fail. Deploy to Cloudflare for full functionality.
+
+## Déployer depuis Windows (WSL ou GitHub Actions)
+
+Si `npm run deploy` échoue sur Windows au push Docker, utilise l’une des deux méthodes suivantes.
+
+### Option A : Déployer depuis WSL
+
+1. **Installer WSL** (si ce n’est pas déjà fait) : dans PowerShell en admin : `wsl --install`, puis redémarrer.
+2. **Ouvrir un terminal WSL** (Ubuntu ou autre distro).
+3. **Aller dans le projet** (adapter le chemin si besoin) :
+   ```bash
+   cd /mnt/c/Users/Lordthiouk/moltworker
+   ```
+4. **Installer Node.js** si besoin : `sudo apt update && sudo apt install -y nodejs npm` ou via nvm.
+5. **Installer les dépendances et déployer** :
+   ```bash
+   npm install
+   npm run deploy
+   ```
+6. Lors du premier déploiement, **connecte-toi à Cloudflare** si demandé : `npx wrangler login` (ouvre le navigateur).
+
+Les secrets (ANTHROPIC_API_KEY, etc.) doivent déjà être configurés avec `wrangler secret put` depuis Windows ; ils sont liés au Worker, pas à la machine.
+
+### Option B : Déployer via GitHub Actions
+
+Le dépôt contient un workflow `.github/workflows/deploy.yml` qui déploie depuis un runner Linux (pas de problème de push Docker).
+
+1. **Pousser le code sur GitHub** (repo public ou privé).
+2. **Créer un token Cloudflare** : [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens) → Create Token → template « Edit Cloudflare Workers » (ou custom avec permissions Workers Scripts, Account, Containers).
+3. **Ajouter les secrets du repo GitHub** : Settings → Secrets and variables → Actions → New repository secret :
+   - `CLOUDFLARE_API_TOKEN` : le token créé à l’étape 2.
+   - `CLOUDFLARE_ACCOUNT_ID` : ton Account ID (visible dans l’URL du dashboard Cloudflare ou dans Workers & Pages).
+4. **Lancer le déploiement** :
+   - **Automatique** : à chaque push sur `main`, le workflow « Deploy » s’exécute (sauf si seuls des fichiers `.md` ou `.dev.vars.example` ont changé).
+   - **Manuel** : onglet Actions → workflow « Deploy » → Run workflow.
+
+Le premier déploiement peut prendre plusieurs minutes (build + push de l’image). Les secrets du Worker (ANTHROPIC_API_KEY, MOLTBOT_GATEWAY_TOKEN, etc.) restent à configurer une fois avec `wrangler secret put` depuis ta machine (Windows ou WSL).
 
 ## Links
 

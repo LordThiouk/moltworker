@@ -121,11 +121,15 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Middleware: Initialize sandbox for all requests
+// Middleware: Initialize sandbox for all requests (skip when containers disabled, e.g. Windows local dev)
 app.use('*', async (c, next) => {
-  const options = buildSandboxOptions(c.env);
-  const sandbox = getSandbox(c.env.Sandbox, 'moltbot', options);
-  c.set('sandbox', sandbox);
+  if (c.env.LOCAL_NO_CONTAINERS === 'true') {
+    c.set('sandbox', null);
+  } else {
+    const options = buildSandboxOptions(c.env);
+    const sandbox = getSandbox(c.env.Sandbox, 'moltbot', options);
+    c.set('sandbox', sandbox);
+  }
   await next();
 });
 
@@ -212,15 +216,51 @@ app.route('/debug', debug);
 // CATCH-ALL: Proxy to Moltbot gateway
 // =============================================================================
 
+/** Message when containers are disabled (Windows local dev or enable_containers: false) */
+const NO_CONTAINERS_MSG = 'Containers are disabled in local dev (e.g. on Windows). Use WSL or deploy to Cloudflare for full Moltbot gateway.';
+
 app.all('*', async (c) => {
-  const sandbox = c.get('sandbox');
   const request = c.req.raw;
   const url = new URL(request.url);
+
+  // Skip Sandbox entirely when containers disabled (check env here; middleware may not have received .dev.vars)
+  if (c.env.LOCAL_NO_CONTAINERS?.trim()?.toLowerCase() === 'true') {
+    const acceptsHtml = request.headers.get('Accept')?.includes('text/html');
+    if (acceptsHtml) {
+      return c.html(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Containers disabled</title></head><body><h1>Local dev without containers</h1><p>${NO_CONTAINERS_MSG}</p><p>You can still use <a href="/_admin/">Admin UI</a> and <a href="/api/status">/api/status</a>.</p></body></html>`, 503);
+    }
+    return c.json({ error: NO_CONTAINERS_MSG, hint: 'Set LOCAL_NO_CONTAINERS=true in .dev.vars when on Windows' }, 503);
+  }
+
+  const sandbox = c.get('sandbox');
+  if (!sandbox) {
+    const acceptsHtml = request.headers.get('Accept')?.includes('text/html');
+    if (acceptsHtml) {
+      return c.html(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Containers disabled</title></head><body><h1>Local dev without containers</h1><p>${NO_CONTAINERS_MSG}</p><p>You can still use <a href="/_admin/">Admin UI</a> and <a href="/api/status">/api/status</a>.</p></body></html>`, 503);
+    }
+    return c.json({ error: NO_CONTAINERS_MSG, hint: 'Set LOCAL_NO_CONTAINERS=true in .dev.vars when on Windows' }, 503);
+  }
 
   console.log('[PROXY] Handling request:', url.pathname);
 
   // Check if gateway is already running
-  const existingProcess = await findExistingMoltbotProcess(sandbox);
+  let existingProcess: Awaited<ReturnType<typeof findExistingMoltbotProcess>> = null;
+  try {
+    existingProcess = await findExistingMoltbotProcess(sandbox);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isContainersDisabled =
+      (msg.includes('internal error') && msg.includes('reference')) ||
+      msg.includes('Containers have not been enabled');
+    if (isContainersDisabled) {
+      const acceptsHtml = request.headers.get('Accept')?.includes('text/html');
+      if (acceptsHtml) {
+        return c.html(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Containers disabled</title></head><body><h1>Local dev without containers</h1><p>${NO_CONTAINERS_MSG}</p><p>Add <code>LOCAL_NO_CONTAINERS=true</code> to your <code>.dev.vars</code> to avoid this error.</p></body></html>`, 503);
+      }
+      return c.json({ error: NO_CONTAINERS_MSG, hint: 'Add LOCAL_NO_CONTAINERS=true to .dev.vars' }, 503);
+    }
+    throw e;
+  }
   const isGatewayReady = existingProcess !== null && existingProcess.status === 'running';
   
   // For browser requests (non-WebSocket, non-API), show loading page if gateway isn't ready
@@ -245,16 +285,21 @@ app.all('*', async (c) => {
   try {
     await ensureMoltbotGateway(sandbox, c.env);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('internal error') && errorMessage.includes('reference')) {
+      const acceptsHtml = request.headers.get('Accept')?.includes('text/html');
+      if (acceptsHtml) {
+        return c.html(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Containers disabled</title></head><body><h1>Local dev without containers</h1><p>${NO_CONTAINERS_MSG}</p><p>Add <code>LOCAL_NO_CONTAINERS=true</code> to your <code>.dev.vars</code>.</p></body></html>`, 503);
+      }
+      return c.json({ error: NO_CONTAINERS_MSG, hint: 'Add LOCAL_NO_CONTAINERS=true to .dev.vars' }, 503);
+    }
     console.error('[PROXY] Failed to start Moltbot:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
     let hint = 'Check worker logs with: wrangler tail';
     if (!c.env.ANTHROPIC_API_KEY) {
       hint = 'ANTHROPIC_API_KEY is not set. Run: wrangler secret put ANTHROPIC_API_KEY';
     } else if (errorMessage.includes('heap out of memory') || errorMessage.includes('OOM')) {
       hint = 'Gateway ran out of memory. Try again or check for memory leaks.';
     }
-
     return c.json({
       error: 'Moltbot gateway failed to start',
       details: errorMessage,
@@ -390,6 +435,10 @@ async function scheduled(
   env: MoltbotEnv,
   _ctx: ExecutionContext
 ): Promise<void> {
+  if (env.LOCAL_NO_CONTAINERS === 'true') {
+    console.log('[cron] Skipping backup sync (containers disabled)');
+    return;
+  }
   const options = buildSandboxOptions(env);
   const sandbox = getSandbox(env.Sandbox, 'moltbot', options);
 

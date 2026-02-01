@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-05-06",
   "compatibility_flags": ["nodejs_compat"],
+  // Disable containers in local dev (Windows doesn't support them; use WSL or deploy for full support)
+  "dev": {
+    "enable_containers": false,
+  },
   "observability": {
     "enabled": true,
   },

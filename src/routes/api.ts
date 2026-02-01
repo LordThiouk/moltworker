@@ -15,6 +15,9 @@ const CLI_TIMEOUT_MS = 20000;
  */
 const api = new Hono<AppEnv>();
 
+/** Message when containers are disabled (Windows local dev) */
+const NO_CONTAINERS_MSG = 'Containers are disabled. Set LOCAL_NO_CONTAINERS=true in .dev.vars when on Windows; gateway/device APIs require containers.';
+
 /**
  * Admin API routes - all protected by Cloudflare Access
  */
@@ -23,9 +26,17 @@ const adminApi = new Hono<AppEnv>();
 // Middleware: Verify Cloudflare Access JWT for all admin routes
 adminApi.use('*', createAccessMiddleware({ type: 'json' }));
 
+// Middleware: Require sandbox (skip when LOCAL_NO_CONTAINERS)
+adminApi.use('*', async (c, next) => {
+  if (c.get('sandbox') === null) {
+    return c.json({ error: NO_CONTAINERS_MSG }, 503);
+  }
+  return next();
+});
+
 // GET /api/admin/devices - List pending and paired devices
 adminApi.get('/devices', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
 
   try {
     // Ensure moltbot is running first
@@ -73,7 +84,7 @@ adminApi.get('/devices', async (c) => {
 
 // POST /api/admin/devices/:requestId/approve - Approve a pending device
 adminApi.post('/devices/:requestId/approve', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   const requestId = c.req.param('requestId');
 
   if (!requestId) {
@@ -110,7 +121,7 @@ adminApi.post('/devices/:requestId/approve', async (c) => {
 
 // POST /api/admin/devices/approve-all - Approve all pending devices
 adminApi.post('/devices/approve-all', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
 
   try {
     // Ensure moltbot is running first
@@ -174,7 +185,7 @@ adminApi.post('/devices/approve-all', async (c) => {
 
 // GET /api/admin/storage - Get R2 storage status and last sync time
 adminApi.get('/storage', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
   const hasCredentials = !!(
     c.env.R2_ACCESS_KEY_ID && 
     c.env.R2_SECRET_ACCESS_KEY && 
@@ -220,8 +231,8 @@ adminApi.get('/storage', async (c) => {
 
 // POST /api/admin/storage/sync - Trigger a manual sync to R2
 adminApi.post('/storage/sync', async (c) => {
-  const sandbox = c.get('sandbox');
-  
+  const sandbox = c.get('sandbox')!;
+
   const result = await syncToR2(sandbox, c.env);
   
   if (result.success) {
@@ -242,7 +253,7 @@ adminApi.post('/storage/sync', async (c) => {
 
 // POST /api/admin/gateway/restart - Kill the current gateway and start a new one
 adminApi.post('/gateway/restart', async (c) => {
-  const sandbox = c.get('sandbox');
+  const sandbox = c.get('sandbox')!;
 
   try {
     // Find and kill the existing gateway process
