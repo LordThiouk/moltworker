@@ -432,6 +432,16 @@ npm run deploy
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
 
+## Config recommandée pour Gemini 3 (OpenRouter)
+
+Si tu utilises **Gemini 3 Pro** ou **Gemini 3 Flash** via OpenRouter comme modèle partenaire (tool calling, agents) :
+
+- **Prix OpenRouter** : Gemini 3 Pro ≈ 2 $/M input, 12 $/M output ; Gemini 3 Flash ≈ 0,50 $/M input, 3 $/M output. Contexte 1M tokens.
+- **Paramètres conseillés** (si ton client/config les expose) : `temperature` 0,6–0,8 pour des tool calls plus stables ; `reasoning.effort` **high** (ou **medium**) pour le raisonnement multi-étapes. OpenRouter mappe `reasoning.effort` vers le `thinkingLevel` de Gemini 3.
+- **Multi-turn tool calling** : pour garder la continuité du raisonnement, il faut conserver les blocs `reasoning_details` dans l’historique renvoyé au modèle après chaque résultat d’outil (voir [OpenRouter – Reasoning Tokens](https://openrouter.ai/docs/use-cases/reasoning-tokens)).
+
+Les modèles **Gemini 3 Pro** et **Gemini 3 Flash** sont ajoutés automatiquement à la liste OpenRouter dans `start-moltbot.sh` et sont sélectionnables dans la Control UI.
+
 ## Security Considerations
 
 ### Authentication Layers

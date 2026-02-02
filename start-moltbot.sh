@@ -238,8 +238,11 @@ if (isOpenRouter) {
         baseUrl: gatewayBaseUrl,
         api: 'openai-responses',
         models: [
+            { id: 'openrouter/auto', name: 'Auto (OpenRouter)', contextWindow: 200000 },
             { id: 'moonshotai/kimi-k2-0905', name: 'Kimi K2', contextWindow: 131072 },
             { id: 'moonshotai/kimi-k2', name: 'Kimi K2 (alt)', contextWindow: 131072 },
+            { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro', contextWindow: 1048576 },
+            { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash', contextWindow: 1048576 },
             { id: 'openai/gpt-4o', name: 'GPT-4o', contextWindow: 128000 },
             { id: 'openai/gpt-4o-mini', name: 'GPT-4o mini', contextWindow: 128000 },
             { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', contextWindow: 200000 },
@@ -250,7 +253,10 @@ if (isOpenRouter) {
         openrouterConfig.apiKey = process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY;
     }
     config.models.providers.openai = openrouterConfig;
+    config.agents.defaults.models['openai/openrouter/auto'] = { alias: 'Auto' };
     config.agents.defaults.models['openai/moonshotai/kimi-k2-0905'] = { alias: 'Kimi K2' };
+    config.agents.defaults.models['openai/google/gemini-3-pro-preview'] = { alias: 'Gemini 3 Pro' };
+    config.agents.defaults.models['openai/google/gemini-3-flash-preview'] = { alias: 'Gemini 3 Flash' };
     config.agents.defaults.models['openai/openai/gpt-4o'] = { alias: 'GPT-4o' };
     config.agents.defaults.models['openai/anthropic/claude-3.5-sonnet'] = { alias: 'Claude 3.5 Sonnet' };
     hasOpenRouter = true;
