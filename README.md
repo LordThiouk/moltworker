@@ -217,8 +217,8 @@ R2 storage uses a backup/restore approach for simplicity:
 
 **On container startup:**
 
-- If R2 is mounted and contains backup data, it's restored to the moltbot config directory
-- OpenClaw uses its default paths (no special configuration needed)
+- If R2 is mounted and contains backup data, it's restored: config (`.clawdbot/`), workspace (`/root/clawd/` including **USER.md**, **MEMORY.md**, skills)
+- So the bot can remember your name and preferences across restarts once you've told it (it writes USER.md / MEMORY.md and we back them up to R2)
 
 **During operation:**
 
