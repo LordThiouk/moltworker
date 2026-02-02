@@ -356,7 +356,7 @@ See `skills/cloudflare-browser/SKILL.md` for full documentation.
 
 You can route API requests through [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for caching, rate limiting, analytics, and cost tracking. AI Gateway supports multiple providers — configure your preferred provider in the gateway and use these env vars:
 
-### Setup
+## Setup
 
 1. Create an AI Gateway in the [AI Gateway section](https://dash.cloudflare.com/?to=/:account/ai/ai-gateway/create-gateway) of the Cloudflare Dashboard.
 2. Add a provider (e.g., Anthropic) to your gateway
@@ -373,20 +373,34 @@ npx wrangler secret put AI_GATEWAY_BASE_URL
 # Enter: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic
 ```
 
+#### OpenRouter (Kimi, GPT, Claude, etc.)
+
+[Cloudflare AI Gateway supports OpenRouter](https://developers.cloudflare.com/ai-gateway/usage/providers/openrouter/). Configure your gateway with OpenRouter as provider, then set:
+
+```bash
+npx wrangler secret put AI_GATEWAY_API_KEY
+# Enter your OpenRouter API key (from https://openrouter.ai/keys)
+
+npx wrangler secret put AI_GATEWAY_BASE_URL
+# Enter: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openrouter
+```
+
+The worker will expose OpenRouter models (Kimi K2, GPT-4o, Claude 3.5 Sonnet, etc.); the default model is Kimi K2.
+
+**OpenRouter and Anthropic together:** You can configure both at the same time. Set `AI_GATEWAY_BASE_URL` to your OpenRouter gateway URL and `AI_GATEWAY_API_KEY` to your OpenRouter key, and also set `ANTHROPIC_API_KEY` for direct Claude. Both providers will appear in the Control UI; the default model will be Kimi (OpenRouter) if OpenRouter is configured, otherwise Claude.
+
 1. Redeploy:
 
 ```bash
 npm run deploy
 ```
 
-The `AI_GATEWAY_*` variables take precedence over `ANTHROPIC_*` if both are set.
-
 ## All Secrets Reference
 
 | Secret | Required | Description |
 |--------|----------|-------------|
 | `AI_GATEWAY_API_KEY` | Yes* | API key for your AI Gateway provider (requires `AI_GATEWAY_BASE_URL`) |
-| `AI_GATEWAY_BASE_URL` | Yes* | AI Gateway endpoint URL (required when using `AI_GATEWAY_API_KEY`) |
+| `AI_GATEWAY_BASE_URL` | Yes* | AI Gateway endpoint (e.g. `.../anthropic`, `.../openai`, `.../openrouter` for OpenRouter/Kimi) |
 | `ANTHROPIC_API_KEY` | Yes* | Direct Anthropic API key (fallback if AI Gateway not configured) |
 | `ANTHROPIC_BASE_URL` | No | Direct Anthropic API base URL (fallback) |
 | `OPENAI_API_KEY` | No | OpenAI API key (alternative provider) |
@@ -449,15 +463,19 @@ Si `npm run deploy` échoue sur Windows au push Docker, utilise l’une des deux
 1. **Installer WSL** (si ce n’est pas déjà fait) : dans PowerShell en admin : `wsl --install`, puis redémarrer.
 2. **Ouvrir un terminal WSL** (Ubuntu ou autre distro).
 3. **Aller dans le projet** (adapter le chemin si besoin) :
+
    ```bash
    cd /mnt/c/Users/Lordthiouk/moltworker
    ```
+
 4. **Installer Node.js** si besoin : `sudo apt update && sudo apt install -y nodejs npm` ou via nvm.
 5. **Installer les dépendances et déployer** :
+
    ```bash
    npm install
    npm run deploy
    ```
+
 6. Lors du premier déploiement, **connecte-toi à Cloudflare** si demandé : `npx wrangler login` (ouvre le navigateur).
 
 Les secrets (ANTHROPIC_API_KEY, etc.) doivent déjà être configurés avec `wrangler secret put` depuis Windows ; ils sont liés au Worker, pas à la machine.

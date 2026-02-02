@@ -3,6 +3,10 @@
 
 ANTHROPIC_API_KEY=sk-ant-...
 
+# Optional: OpenRouter via Cloudflare AI Gateway (Kimi, GPT, etc.). Can be used together with ANTHROPIC_API_KEY.
+# AI_GATEWAY_API_KEY=sk-or-...
+# AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT/YOUR_GATEWAY/openrouter
+
 # Local development mode - skips Cloudflare Access auth and bypasses device pairing
 # DEV_MODE=true
 
