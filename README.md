@@ -454,6 +454,14 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 
 **WebSocket issues in local development:** `wrangler dev` has known limitations with WebSocket proxying through the sandbox. HTTP requests work but WebSocket connections may fail. Deploy to Cloudflare for full functionality.
 
+**L’IA ne répond pas (OpenRouter / Kimi) :** Si l’interface charge mais que le modèle ne renvoie rien quand tu envoies un message :
+
+1. **Voir les erreurs en direct** : dans un terminal, lance `npx wrangler tail` puis renvoie un message dans la Control UI ; regarde si des erreurs HTTP ou WebSocket apparaissent.
+2. **Vérifier OpenRouter** : va sur [OpenRouter Dashboard](https://openrouter.ai/activity) et vérifie qu’il n’y a pas d’erreurs 401/429 ou de clé révoquée. Vérifie aussi que le modèle `moonshotai/kimi-k2-0905` est bien disponible.
+3. **Tester avec Anthropic seul** : configure uniquement `ANTHROPIC_API_KEY` (sans `AI_GATEWAY_*`) et redéploie. Si Claude répond, le souci vient d’OpenRouter ou de l’AI Gateway (URL, clé, ou réseau depuis le conteneur).
+4. **URL AI Gateway** : `AI_GATEWAY_BASE_URL` doit se terminer par `/openrouter` (ex. `https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/GATEWAY_ID/openrouter`). Pas de slash final.
+5. **Clé API** : avec AI Gateway + OpenRouter, utilise ta clé OpenRouter (`sk-or-v1-...`) dans `AI_GATEWAY_API_KEY`. Cloudflare transmet cette clé à OpenRouter.
+
 ## Déployer depuis Windows (WSL ou GitHub Actions)
 
 Si `npm run deploy` échoue sur Windows au push Docker, utilise l’une des deux méthodes suivantes.

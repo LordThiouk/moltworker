@@ -94,12 +94,10 @@ function validateRequiredEnv(env: MoltbotEnv): string[] {
  */
 function buildSandboxOptions(env: MoltbotEnv): SandboxOptions {
   const sleepAfter = env.SANDBOX_SLEEP_AFTER?.toLowerCase() || 'never';
-  
   // 'never' means keep the container alive indefinitely
   if (sleepAfter === 'never') {
     return { keepAlive: true };
   }
-  
   // Otherwise, use the specified duration
   return { sleepAfter };
 }

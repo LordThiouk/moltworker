@@ -212,7 +212,7 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
 // You can configure OpenRouter AND Anthropic at the same time; both providers will be available in the Control UI.
 const gatewayBaseUrl = (process.env.AI_GATEWAY_BASE_URL || '').replace(/\/+$/, '');
 const anthropicBaseUrl = (process.env.ANTHROPIC_BASE_URL || '').replace(/\/+$/, '');
-const isOpenRouter = gatewayBaseUrl.endsWith('/openrouter');
+const isOpenRouter = gatewayBaseUrl.endsWith('/openrouter') || gatewayBaseUrl.includes('openrouter.ai');
 const isOpenAI = gatewayBaseUrl.endsWith('/openai');
 const isAnthropicGateway = gatewayBaseUrl.endsWith('/anthropic');
 config.models = config.models || {};
@@ -222,9 +222,9 @@ let hasOpenRouter = false;
 let hasOpenAI = false;
 let hasAnthropic = false;
 
-// 1) OpenRouter via AI Gateway (optional)
+// 1) OpenRouter via AI Gateway or direct (optional)
 if (isOpenRouter) {
-    console.log('Configuring OpenRouter provider (AI Gateway):', gatewayBaseUrl);
+    console.log('Configuring OpenRouter provider:', gatewayBaseUrl.includes('openrouter.ai') ? 'direct' : 'AI Gateway', gatewayBaseUrl);
     const openrouterConfig = {
         baseUrl: gatewayBaseUrl,
         api: 'openai-responses',
