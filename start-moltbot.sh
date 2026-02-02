@@ -286,15 +286,20 @@ if (process.env.ANTHROPIC_API_KEY || isAnthropicGateway) {
     hasAnthropic = true;
 }
 
-// Primary model: prefer OpenRouter (Kimi), then Anthropic, then OpenAI; fallback to built-in Anthropic
-if (hasOpenRouter) {
-    config.agents.defaults.model.primary = 'openai/moonshotai/kimi-k2-0905';
-} else if (hasAnthropic) {
-    config.agents.defaults.model.primary = 'anthropic/claude-opus-4-5-20251101';
-} else if (hasOpenAI) {
-    config.agents.defaults.model.primary = 'openai/gpt-5.2';
+// Primary model: keep existing choice from R2 if present, otherwise set default
+const existingPrimary = config.agents.defaults.model?.primary;
+if (!existingPrimary || typeof existingPrimary !== 'string') {
+    if (hasOpenRouter) {
+        config.agents.defaults.model.primary = 'openai/moonshotai/kimi-k2-0905';
+    } else if (hasAnthropic) {
+        config.agents.defaults.model.primary = 'anthropic/claude-opus-4-5-20251101';
+    } else if (hasOpenAI) {
+        config.agents.defaults.model.primary = 'openai/gpt-5.2';
+    } else {
+        config.agents.defaults.model.primary = 'anthropic/claude-opus-4-5';
+    }
 } else {
-    config.agents.defaults.model.primary = 'anthropic/claude-opus-4-5';
+    console.log('Keeping existing model from config/R2:', existingPrimary);
 }
 
 // Write updated config

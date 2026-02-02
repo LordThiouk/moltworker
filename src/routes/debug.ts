@@ -2,6 +2,24 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { findExistingMoltbotProcess } from '../gateway';
 
+/** Keys to redact when returning config (security) */
+const SECRET_KEYS = new Set(['apiKey', 'token', 'botToken', 'appToken', 'secret', 'password']);
+
+function redactConfigSecrets(obj: unknown): unknown {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(redactConfigSecrets);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    const keyLower = k.toLowerCase();
+    if (SECRET_KEYS.has(k) || keyLower.endsWith('token') || keyLower.endsWith('key') || keyLower.endsWith('secret')) {
+      out[k] = v && typeof v === 'string' ? '[REDACTED]' : '[REDACTED]';
+    } else {
+      out[k] = redactConfigSecrets(v);
+    }
+  }
+  return out;
+}
+
 /**
  * Debug routes for inspecting container state
  * Note: These routes should be protected by Cloudflare Access middleware
@@ -385,11 +403,14 @@ debug.get('/container-config', async (c) => {
     } catch {
       // Not valid JSON
     }
-    
+
+    // Redact API keys in config before returning (security)
+    const sanitized = config ? redactConfigSecrets(config) : null;
+
     return c.json({
       status: proc.status,
       exitCode: proc.exitCode,
-      config,
+      config: sanitized,
       raw: config ? undefined : stdout,
       stderr,
     });

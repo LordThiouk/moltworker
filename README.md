@@ -232,6 +232,16 @@ R2 storage uses a backup/restore approach for simplicity:
 
 Without R2 credentials, moltbot still works but uses ephemeral storage (data lost on container restart).
 
+### Changer de modèle (Kimi, Claude, GPT-4o, etc.)
+
+Dans la **Control UI** (l’interface de chat), tu peux changer de modèle :
+
+1. Ouvre la Control UI (URL du worker avec `?token=...`).
+2. Cherche un **sélecteur de modèle** dans l’interface (souvent en haut de la conversation ou dans les paramètres / le menu).
+3. Choisis le modèle voulu (ex. Kimi K2, GPT-4o, Claude 3.5 Sonnet selon ta config).
+
+Ton choix est enregistré dans la config et **sauvegardé sur R2** par le cron (toutes les 5 min) ou via « Backup Now » dans l’admin. Au prochain redémarrage du conteneur, le script conserve le modèle déjà présent dans la config restaurée depuis R2 (il ne l’écrase plus).
+
 ## Container Lifecycle
 
 By default, the sandbox container stays alive indefinitely (`SANDBOX_SLEEP_AFTER=never`). This is recommended because cold starts take 1-2 minutes.
@@ -448,6 +458,8 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 
 **R2 not mounting:** Check that all three R2 secrets are set (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CF_ACCOUNT_ID`). Note: R2 mounting only works in production, not with `wrangler dev`.
 
+**Le bot « oublie » les conversations / pas d’accès R2 :** Si les secrets R2 sont bien configurés mais que le bot repart de zéro à chaque redémarrage (il « oublie » les échanges avec Anthropic ou autres), le montage R2 échoue ou le bucket est vide. À faire : (1) **Créer le bucket** : dans le dashboard Cloudflare → R2 → créer un bucket nommé exactement `moltbot-data` s’il n’existe pas (le binding dans wrangler pointe vers ce nom). (2) **Token R2** : les identifiants doivent venir d’un **R2 API Token** créé dans R2 → Manage R2 API Tokens, avec **Object Read & Write** sur le bucket `moltbot-data`. (3) **Vérifier les logs** : `npx wrangler tail`, puis déclencher une requête ; chercher `R2 bucket mounted successfully` ou `Failed to mount R2 bucket` / `R2 storage not configured`. Si le montage échoue, corriger le bucket ou le token puis redéployer.
+
 **Access denied on admin routes:** Ensure `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set, and that your Cloudflare Access application is configured correctly.
 
 **Devices not appearing in admin UI:** Device list commands take 10-15 seconds due to WebSocket connection overhead. Wait and refresh.
@@ -461,6 +473,13 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 3. **Tester avec Anthropic seul** : configure uniquement `ANTHROPIC_API_KEY` (sans `AI_GATEWAY_*`) et redéploie. Si Claude répond, le souci vient d’OpenRouter ou de l’AI Gateway (URL, clé, ou réseau depuis le conteneur).
 4. **URL AI Gateway** : `AI_GATEWAY_BASE_URL` doit se terminer par `/openrouter` (ex. `https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/GATEWAY_ID/openrouter`). Pas de slash final.
 5. **Clé API** : avec AI Gateway + OpenRouter, utilise ta clé OpenRouter (`sk-or-v1-...`) dans `AI_GATEWAY_API_KEY`. Cloudflare transmet cette clé à OpenRouter.
+
+**Aucun log dans AI Gateway (ni dans OpenRouter) :** Si ni le dashboard AI Gateway ni OpenRouter n’affichent de requêtes, les appels ne quittent pas le conteneur ou ne ciblent pas la bonne URL. À vérifier :
+
+1. **Modèle utilisé** : dans la Control UI, assure-toi que le modèle sélectionné pour la conversation est bien un modèle OpenRouter (ex. Kimi K2). Si un modèle Anthropic est sélectionné, les requêtes partent vers Anthropic, pas vers l’AI Gateway.
+2. **Config dans le conteneur** : active les routes debug (`DEBUG_ROUTES=true`), redéploie, puis ouvre `https://ton-worker/debug/container-config` (avec ton token/accès). Vérifie que `config.models.providers.openai.baseUrl` est bien l’URL de ton AI Gateway (ex. `.../openrouter`) ou `https://openrouter.ai/api/v1` en direct. Si `baseUrl` est absent ou incorrect, les secrets ou le redémarrage du conteneur n’ont pas été pris en compte.
+3. **Redéployer après changement de secrets** : après un `wrangler secret put`, il faut redéployer (ou attendre un nouveau démarrage du conteneur) pour que la nouvelle config soit injectée. Un conteneur déjà en marche garde l’ancienne config.
+4. **Tester OpenRouter direct** : mets `AI_GATEWAY_BASE_URL` = `https://openrouter.ai/api/v1` et redéploie. Si des logs apparaissent sur OpenRouter, le souci vient de l’URL ou de l’auth de l’AI Gateway.
 
 ## Déployer depuis Windows (WSL ou GitHub Actions)
 
